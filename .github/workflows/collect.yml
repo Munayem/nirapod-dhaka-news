@@ -1,0 +1,38 @@
+name: Collect Dhaka crime news
+
+on:
+  schedule:
+    - cron: "23 * * * *"   # প্রতি ঘণ্টায়
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "শুধু দেখাবে, সার্ভারে পাঠাবে না (1 = হ্যাঁ)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+  models: read      # GitHub Models-এর ফ্রি AI
+  id-token: write   # সার্ভারে পরিচয় দেওয়ার জন্য (কোনো secret লাগে না)
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      API_BASE: https://nirapod-dhaka-api.vet-munayem.workers.dev
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download collector
+        run: curl -fsSL "$API_BASE/collector/collect.mjs" -o collect.mjs
+      - name: Collect and send
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
+        run: node collect.mjs
